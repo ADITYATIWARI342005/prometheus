@@ -278,6 +278,8 @@ set to `prometheus`:
 The `offset` modifier allows changing the time offset for individual
 instant and range vectors in a query.
 
+`offset` always binds to the immediately preceding selector (instant or range), not to the whole expression.
+
 For example, the following expression returns the value of
 `http_requests_total` 5 minutes in the past relative to the current
 query evaluation time:
@@ -293,16 +295,33 @@ While the following would be *incorrect*:
 
     sum(http_requests_total{method="GET"}) offset 5m // INVALID.
 
+Correct placement within functions and aggregations:
+
+    sum(rate(http_requests_total[5m] offset 1h))   # offset binds to the range selector
+    clamp_max(rate(http_requests_total[5m] offset 1h), 100)
+
+Multiple selectors may each have their own offset:
+
+    rate(a_total[5m] offset 1h) / rate(b_total[5m] offset 30m)
+
 The same works for range vectors. This returns the 5-minute [rate](./functions.md#rate)
 that `http_requests_total` had a week ago:
 
     rate(http_requests_total[5m] offset 1w)
+
+In subqueries, `offset` binds to the subquery's instant query selector:
+
+    rate(http_requests_total[5m:1m] offset 1h)  # offset applies to http_requests_total
+
+Note: `first_over_time(m[1m])` differs from `m offset 1m` - see [functions documentation](./functions.md#first_over_time) for details.
 
 When querying for samples in the past, a negative offset will enable temporal comparisons forward in time:
 
     rate(http_requests_total[5m] offset -1w)
 
 Note that this allows a query to look ahead of its evaluation time.
+
+See also: [`first_over_time(m[1m])` vs `m offset 1m`](./functions.md#aggregation_over_time)
 
 ### @ modifier
 
