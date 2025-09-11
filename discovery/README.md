@@ -187,7 +187,13 @@ For example if we had a discovery mechanism and it retrieves the following group
 }
 ```
 
-Here there are two target groups one group with source `file1` and another with `file2`. The grouping is implementation specific and could even be one target per group. But, one has to make sure every target group sent by an SD instance should have a `Source` which is unique across all the target groups of that SD instance. 
+Here there are two target groups one group with source `file1` and another with `file2`. The grouping is implementation specific and could even be one target per group. But, one has to make sure every target group sent by an SD instance should have a `Source` which is unique across all the target groups of that SD instance.
+
+Uniqueness scope and consequences:
+
+- The `Source` must be stable and deterministic across refreshes, and **unique per provider and per subscription** (i.e., per scrape/alerting config using that provider).
+- Prometheus internally keys groups by `Source`. If two groups in the same batch share the same `Source`, the later one will replace the earlier one. If a previously existing group is later sent empty, it is removed.
+- Practically, collisions may cause silent target loss. Implementations should construct `Source` identifiers that cannot collide, e.g., `url:index` for HTTP-SD, or resource-identity strings such as `svc/<namespace>/<name>` in Kubernetes.
 
 In this case, both the target groups are sent down the channel the first time `Run()` is called. Now, for an update, we need to send the whole _changed_ target group down the channel. i.e, if the target with `hostname: demo-postgres-2` goes away, we send:
 ```go

@@ -26,6 +26,8 @@ type Metrics struct {
 	ReceivedUpdates   prometheus.Counter
 	DelayedUpdates    prometheus.Counter
 	SentUpdates       prometheus.Counter
+	// SourceCollisions counts duplicate target group Source identifiers observed per config.
+	SourceCollisions *prometheus.CounterVec
 }
 
 func NewManagerMetrics(registerer prometheus.Registerer, sdManagerName string) (*Metrics, error) {
@@ -72,12 +74,22 @@ func NewManagerMetrics(registerer prometheus.Registerer, sdManagerName string) (
 		},
 	)
 
+	m.SourceCollisions = prometheus.NewCounterVec(
+		prometheus.CounterOpts{
+			Name:        "prometheus_sd_source_collisions_total",
+			Help:        "Total number of duplicate target group Source identifiers seen within a single update batch.",
+			ConstLabels: prometheus.Labels{"name": sdManagerName},
+		},
+		[]string{"config"},
+	)
+
 	metrics := []prometheus.Collector{
 		m.FailedConfigs,
 		m.DiscoveredTargets,
 		m.ReceivedUpdates,
 		m.DelayedUpdates,
 		m.SentUpdates,
+		m.SourceCollisions,
 	}
 
 	for _, collector := range metrics {
@@ -97,4 +109,5 @@ func (m *Metrics) Unregister(registerer prometheus.Registerer) {
 	registerer.Unregister(m.ReceivedUpdates)
 	registerer.Unregister(m.DelayedUpdates)
 	registerer.Unregister(m.SentUpdates)
+	registerer.Unregister(m.SourceCollisions)
 }

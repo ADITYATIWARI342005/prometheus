@@ -350,6 +350,20 @@ func (m *Manager) updater(ctx context.Context, p *Provider, updates chan []*targ
 
 			p.mu.RLock()
 			for s := range p.subs {
+				// Detect duplicate Source identifiers within the same batch for observability.
+				// Scope is per subscription (config) and provider.
+				seen := make(map[string]struct{}, len(tgs))
+				for _, tg := range tgs {
+					if tg == nil {
+						continue
+					}
+					if _, exists := seen[tg.Source]; exists {
+						m.metrics.SourceCollisions.WithLabelValues(s).Inc()
+						m.logger.Warn("Duplicate target group Source in update batch; later group will replace earlier", "source", tg.Source, "provider", p.name, "config", s)
+					} else {
+						seen[tg.Source] = struct{}{}
+					}
+				}
 				m.updateGroup(poolKey{setName: s, provider: p.name}, tgs)
 			}
 			p.mu.RUnlock()
