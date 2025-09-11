@@ -248,6 +248,45 @@ tests:
                   value: 50
 ```
 
+### Examples with native histograms
+
+The following examples demonstrate how to write unit tests that use native histograms in `input_series` and validate PromQL expressions that operate on them. These are minimal and runnable with `promtool test rules`.
+
+#### `native_histograms_test.yml`
+
+```yaml
+# No rules file is needed for PromQL expression tests only.
+rule_files: []
+
+evaluation_interval: 1m
+
+tests:
+  - name: Native histogram rate and aggregates
+    interval: 1m
+    input_series:
+      # A single native histogram time series with steadily increasing count and sum.
+      # Over 5 minutes, count increases by 300 and sum increases by 600.
+      # With 1-minute evaluation interval, this yields:
+      #   rate(count) = 300 / 300s = 1.0
+      #   rate(sum)   = 600 / 300s = 2.0
+      # Therefore, histogram_avg(rate(..)) = rate(sum)/rate(count) = 2.0
+      - series: 'http_request_duration_seconds{job="api",instance="a"}'
+        values: '{{count:0 sum:0}} {{count:60 sum:120}} {{count:120 sum:240}} {{count:180 sum:360}} {{count:240 sum:480}} {{count:300 sum:600}}'
+
+    promql_expr_test:
+      - expr: histogram_count(rate(http_request_duration_seconds[5m]))
+        eval_time: 5m
+        exp_samples:
+          - labels: 'http_request_duration_seconds{job="api",instance="a"}'
+            value: 1
+
+      - expr: histogram_avg(rate(http_request_duration_seconds[5m]))
+        eval_time: 5m
+        exp_samples:
+          - labels: 'http_request_duration_seconds{job="api",instance="a"}'
+            value: 2
+```
+
 ### `alerts.yml`
 
 ```yaml
