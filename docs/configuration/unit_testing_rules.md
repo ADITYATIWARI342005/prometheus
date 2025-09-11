@@ -132,6 +132,24 @@ series: <string>
 values: <string>
 ```
 
+#### Native histogram examples with custom buckets (schema:-53)
+
+```yaml
+# Valid custom-bucket native histogram samples in unit tests
+input_series:
+  - series: 'req_latency_seconds_bucket{job="api",le="custom"}'
+    # Two samples using custom buckets; zero bucket fields are omitted as required for schema:-53.
+    values: '{{schema:-53 count:3 sum:6 custom_values:[0.25 0.5 1 2] buckets:[1 1 1] offset:0}} {{schema:-53 count:5 sum:9 custom_values:[0.25 0.5 1 2] buckets:[2 2 1] offset:0}}'
+
+# Invalid examples (will be rejected by validation)
+# 1) Non-increasing custom_values
+# values: '{{schema:-53 custom_values:[0.5 0.5 1] buckets:[1 1]}}'
+# 2) +Inf explicitly included (must not include +Inf)
+# values: '{{schema:-53 custom_values:[0.5 1 +Inf] buckets:[1 1]}}'
+# 3) Using zero bucket fields with custom schema
+# values: '{{schema:-53 z_bucket:1 z_bucket_w:0.01 custom_values:[0.5 1] buckets:[1 1]}}'
+```
+
 ### `<alert_test_case>`
 
 Prometheus allows you to have same alertname for different alerting rules. Hence in this unit testing, you have to list the union of all the firing alerts for the alertname under a single `<alert_test_case>`.
